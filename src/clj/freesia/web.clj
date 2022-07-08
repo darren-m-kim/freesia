@@ -1,15 +1,15 @@
 (ns freesia.web
   (:require
    [clojure.tools.logging :as log]
-   [ring.middleware.json :as j]
-   [ring.middleware.reload :as l]
+   [ring.middleware.params :as rmp]
+   [reitit.ring.middleware.muuntaja :as rrmm]
+   [muuntaja.core :as mc]
+   [reitit.ring.coercion :as rrc]
+   [reitit.ring :as rr]
+   [reitit.ring.middleware.parameters :as rrmp]
    [ring.util.response :refer [response]]
-   [clojure.java.io :as io]
-   [compojure.core :refer [routes GET PUT POST DELETE ANY]]
-   [compojure.route :refer [not-found]]
-   [selmer.parser :as parser]
    [environ.core :refer [env]]
-   [ring.adapter.jetty :as jetty :refer [run-jetty]]))
+   [ring.adapter.jetty :refer [run-jetty]]))
 
 (def cors-items
   [["Access-Control-Allow-Origin" "http://localhost:1729"]
@@ -21,68 +21,60 @@
       (reduce (fn [r [k v]] (assoc-in r [:headers k] v))
               resp cors-items))))
 
-(def info-handlers
-  [(GET "/" [] (response "Bitem PIAS API Server"))
-   (GET "/info" [] (response {:foo "bar"}))
-   (not-found "Not found")])
-
-(def login-handler
-  [(GET "/login" [] (response {:token "fake-token"
-                               :success? true}))])
-
-(def handlers
-  (flatten [#_v/management-handlers
-            #_o/person-handlers
-            login-handler
-            info-handlers
-            ]))
-
-(def dispatch
-  (apply routes handlers))
-
 (def app
-  (-> dispatch
-      (j/wrap-json-body {:keywords? true})
-      (j/wrap-json-response)
-      (cors)
-      (l/wrap-reload)))
+  (rr/ring-handler
+   (rr/router
+    ["/api"
+     ["/info" {:get {:handler (fn [_] (response "bitem api"))}}]
+     ["/login" {:post {:handler (fn [req]
+                                  (let [{:keys [username password]} (:query-params req)]
+                                    (prn "!!!!!" (:query-params req))
+                                    (response (if (and (= username "abc") (= password "def"))
+                                                {:logged? true
+                                                 :token "fake-token"}
+                                                {:logged? false}))))}}]
+     ["/req" {:get {:handler (fn [req]
+                               (prn "@@@@" (:query-params req))
+                               (response (:query-params req)))}}]]
+    {:data {:muuntaja mc/instance
+            :middleware [rrc/coerce-request-middleware
+                         rrmp/parameters-middleware
+                         rrmm/format-response-middleware
+                         rrc/coerce-response-middleware
+                         rmp/wrap-params
+                         rrmm/format-middleware
+                         rrc/coerce-exceptions-middleware
+                         rrc/coerce-response-middleware]}})))
+
+(defonce server (atom nil))
+
+(defn jetty [port]
+  (run-jetty #'app
+   {:port port :join? false}))
+
+(defn start [port]
+  (log/info "jetty started.")
+  (reset! server (jetty port)))
+
+(defn stop []
+  (let [s @server]
+    (if s
+      (do (.stop @server)
+          (log/info "server stopped.")
+          (reset! server nil))
+      (log/info "server not running now."))))
+
+(defn refresh [port]
+  (stop)
+  (start port))
 
 (defn -main [& [port]]
   (let [port (Integer. (or port (env :port) 5000))]
     (run-jetty #'app
                {:port port :join? false})))
 
-#_
-(defonce server
-  (atom nil))
-#_
-(defn jetty [port]
-  (t/run-jetty #'app
-   {:port port
-    :join? false}))
-#_
-(defn start [port]
-  (g/info "jetty started.")
-  (reset! server (jetty port)))
-#_
-(defn stop []
-  (let [s @server]
-    (if s
-      (do (.stop @server)
-          (g/info "server stopped.")
-          (reset! server nil))
-      (g/info "server not running now."))))
-#_
-(defn refresh [port]
-  (stop)
-  (start port))
-#_
-(defn -main [& [port]]
-  (let [port (or port 5000)]
-    (start port)))
-#_
 (comment
   "control, will be moved to user ns."
-  (start 5000)
+  (start 1234)
   (stop)
-  (refresh 5000))
+  (refresh 1234))
