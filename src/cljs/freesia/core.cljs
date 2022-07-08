@@ -13,6 +13,8 @@
 (def log (.-log js/console))
 
 (defonce page (rc/atom nil))
+(defonce token (rc/atom nil))
+(defonce logged-in? (rc/atom false))
 
 (defn current-page []
   [:div
@@ -39,6 +41,23 @@
         (prn @tester)
         (reset! tester (str "my love + " (:status response))))))
 
+(defn login! [username password]
+  (go (let [response (<! (http/get "http://localhost:1234/login"
+                                   {:with-credentials? false}))]
+        (prn "@@@@" response)
+        (reset! token (-> response :body :token))
+        (prn "!!!!! the internally saved token is " @token))))
+
+(defn login-page []
+  (let [username (rc/atom "")
+        password (rc/atom "")]
+    [:div
+     [:label "username:"]
+     [:input {:type :text :on-change #(reset! username "abc")}]
+     [:label "password:"]
+     [:input {:type :text :on-change #(reset! password "def")}]
+     [:button {:on-click #(login! @username @password)} "tester!"]]))
+
 (defn home-page []
   [:div
    [:h2 "Welcome to frontend"]
@@ -56,14 +75,16 @@
               :view about-page}]])
 
 (defn run []
-   (rfe/start!
-    (rf/router routes {:data {:coercion rcs/coercion}})
-    (fn [m]
-      (prn "!!!!!!!" m)
-      (reset! page m))
-    {:use-fragment true})
+  (rfe/start!
+   (rf/router routes
+              {:data {:coercion rcs/coercion}})
+   (fn [m]
+     (reset! page m))
+   {:use-fragment true})
   (rd/render
-   [current-page]
+   (if @logged-in?
+     [current-page]
+     [login-page])
    (js/document.getElementById "root")))
 
 (defn ^:export init []

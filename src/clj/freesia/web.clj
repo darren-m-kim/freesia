@@ -1,6 +1,6 @@
 (ns freesia.web
   (:require
-   [clojure.tools.logging :as g]
+   [clojure.tools.logging :as log]
    [ring.middleware.json :as j]
    [ring.middleware.reload :as l]
    [ring.util.response :refer [response]]
@@ -9,10 +9,7 @@
    [compojure.route :refer [not-found]]
    [selmer.parser :as parser]
    [environ.core :refer [env]]
-   [ring.adapter.jetty :as jetty]
-   [compojure.handler :refer [site]]
-   [freesia.content.management :as v]
-   [freesia.content.person :as o]))
+   [ring.adapter.jetty :as jetty :refer [run-jetty]]))
 
 (def cors-items
   [["Access-Control-Allow-Origin" "http://localhost:1729"]
@@ -29,10 +26,16 @@
    (GET "/info" [] (response {:foo "bar"}))
    (not-found "Not found")])
 
+(def login-handler
+  [(GET "/login" [] (response {:token "fake-token"
+                               :success? true}))])
+
 (def handlers
   (flatten [#_v/management-handlers
             #_o/person-handlers
-            info-handlers]))
+            login-handler
+            info-handlers
+            ]))
 
 (def dispatch
   (apply routes handlers))
@@ -46,8 +49,8 @@
 
 (defn -main [& [port]]
   (let [port (Integer. (or port (env :port) 5000))]
-    (jetty/run-jetty (site #'app)
-                     {:port port :join? false})))
+    (run-jetty #'app
+               {:port port :join? false})))
 
 #_
 (defonce server
