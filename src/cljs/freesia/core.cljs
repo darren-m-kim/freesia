@@ -10,6 +10,8 @@
    [reitit.frontend.easy :as rfe]
    [reitit.coercion.spec :as rcs]))
 
+(def base-url "http://localhost:3548/")
+
 (def log (.-log js/console))
 
 (defonce page (rc/atom nil))
@@ -42,8 +44,8 @@
         (reset! tester (str "my love + " (:status response))))))
 
 (defn login! [username password]
-  (go (let [response (<! (http/get "http://localhost:1234/login"
-                                   {:with-credentials? false}))]
+  (go (let [response (<! (http/get (str base-url "info")
+                                    {}))]
         (prn "@@@@" response)
         (reset! token (-> response :body :token))
         (prn "!!!!! the internally saved token is " @token))))
