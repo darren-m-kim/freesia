@@ -11,9 +11,7 @@
                  [environ "1.1.0"]
                  [org.clojure/tools.logging "1.2.4"]
                  [ring "1.9.5"]
-                 [ring/ring-json "0.5.1"]
-                 [metosin/reitit "0.5.18"]
-                 [metosin/muuntaja "0.6.8"]]
+                 [ring/ring-json "0.5.1"]]
   :source-paths ["src/clj" "src/cljc"]
   :test-paths ["test/clj" "test/cljc"]
   :min-lein-version "2.0.0"

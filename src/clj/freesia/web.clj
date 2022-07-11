@@ -6,17 +6,21 @@
    [ring.middleware.json :as j]
    [ring.middleware.reload :as l]
    [ring.util.response :as i]
-   [compojure.core :as p]
-   [compojure.route :as u]))
+   [compojure.core :as cc]
+   [compojure.route :as cr]))
+
+(def login-handlers
+  [(cc/POST "/login" [] (i/response "hi"))])
 
 (def info-handlers
-  [(p/GET "/" [] (i/response "Bitem PIAS API Server"))
-   (p/GET "/info" [] (i/response {:baz "qsssux"}))
-   (u/not-found "Not found")])
+  [(cc/GET "/" [] (i/response "Bitem PIAS API Server"))
+   (cc/GET "/info" [] (i/response {:baz "qsssux"}))
+   (cr/not-found "Not found")])
 
 (def paths
-  (apply p/routes
-         (flatten [info-handlers])))
+  (apply cc/routes
+         (flatten [info-handlers
+                   login-handlers])))
 
 (def cors-items
   [["Access-Control-Allow-Origin" "http://localhost:1729"]
@@ -25,7 +29,8 @@
 (defn cors [handler]
   (fn [req]
     (let [resp (handler req)]
-      (reduce (fn [r [k v]] (assoc-in r [:headers k] v)) resp cors-items))))
+      (reduce (fn [r [k v]] (assoc-in r [:headers k] v))
+              resp cors-items))))
 
 (def app
   (-> paths
